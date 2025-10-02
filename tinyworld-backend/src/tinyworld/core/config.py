@@ -15,6 +15,7 @@ logger.info(f"Loading environment variables from: {env_path}")
 
 # Verify critical environment variables are loaded
 openai_key = os.getenv('OPENAI_API_KEY')
+google_key = os.getenv('GOOGLE_API_KEY')
 opik_key = os.getenv('OPIK_API_KEY')
 opik_workspace = os.getenv('OPIK_WORKSPACE')
 
@@ -22,6 +23,16 @@ if not openai_key:
     logger.error("OPENAI_API_KEY not found in environment variables!")
     logger.error(f"Looking for .env file at: {env_path}")
     raise ValueError("OPENAI_API_KEY is required but not found in environment variables")
+
+if not google_key:
+    logger.error("GOOGLE_API_KEY not found in environment variables!")
+    logger.error(f"Looking for .env file at: {env_path}")
+    raise ValueError("GOOGLE_API_KEY is required but not found in environment variables")
+
+if not openai_key and not google_key:
+    logger.error("OPENAI_API_KEY or GOOGLE_API_KEY not found in environment variables!")
+    logger.error(f"Looking for .env file at: {env_path}")
+    raise ValueError("OPENAI_API_KEY or GOOGLE_API_KEY is required but not found in environment variables")
 
 if not opik_key:
     logger.warning("OPIK_API_KEY not found in environment variables. Opik features will be limited.")

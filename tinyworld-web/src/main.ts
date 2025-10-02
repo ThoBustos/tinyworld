@@ -4,6 +4,7 @@ import { createCamera, updateCamera, setupCameraControls, centerCameraOn } from 
 import { updateCharacterAI } from './character';
 import { WebSocketService, AgentUpdateMessage } from './services/websocket';
 import { AgentDisplay } from './components/AgentDisplay';
+import { ScreenshotService } from './services/screenshot';
 
 async function bootstrap() {
   // Create PixiJS application with fullscreen settings
@@ -59,23 +60,32 @@ async function bootstrap() {
   // Connect to WebSocket server
   const wsService = new WebSocketService();
   
-  // Connect with agent update handler - use websocket messages for speech/thought
-  wsService.connect((agentData: AgentUpdateMessage) => {
-    console.log('Agent Update:', agentData);
-    
-    if (agentData.character_id === 'socrates_001') {
-      // Display real speech from server
-      if (agentData.character_message) {
-        agentDisplay.speechBubble.show(agentData.character_message, 30); // Show for 10 seconds
-        console.log(`🗣️ Socrates says: "${agentData.character_message}"`);
+  // Initialize screenshot service
+  const screenshotService = new ScreenshotService(app);
+  
+  // Connect with agent update handler and start screenshots on connection
+  wsService.connect(
+    // Agent update handler
+    (agentData: AgentUpdateMessage) => {
+      console.log('Agent Update:', agentData);
+      
+      if (agentData.character_id === 'socrates_001') {
+        // Display real speech from server
+        if (agentData.character_message) {
+          agentDisplay.speechBubble.show(agentData.character_message, 30); // Show for 30 seconds
+          console.log(`🗣️ Socrates says: "${agentData.character_message}"`);
+        }
       }
-      // Display real thoughts from server
-      // if (agentData.thought) {
-      //   agentDisplay.speechBubble.show(agentData.thought, 30); // Show for 10 seconds
-      //   console.log(`💭 Socrates thinks: "${agentData.thought}"`);
-      // }
+    },
+    // On connected callback - start screenshots
+    () => {
+      console.log('✅ WebSocket connected, starting screenshot capture...');
+      screenshotService.startCapturing(30, (dataUrl) => {
+        console.log('📸 Sending screenshot to backend...');
+        wsService.sendScreenshotData(dataUrl);
+      });
     }
-  });
+  );
   
   // Main game loop - runs at 60fps
   app.ticker.add((ticker) => {

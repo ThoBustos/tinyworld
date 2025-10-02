@@ -2,6 +2,9 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import time
+import os
+import tempfile
+import base64
 from typing import List
 from contextlib import asynccontextmanager
 
@@ -121,16 +124,61 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             # Receive message from client
             data = await websocket.receive_json()
+            print(f"📨 Received WebSocket message type: {data.get('type')}")
             
-            # Echo back with world update (simple echo for v1)
-            await manager.send_personal_message({
-                "type": "world_update",
-                "data": {
-                    "timestamp": time.time(),
-                    "echo": data,
-                    "active_connections": len(manager.active_connections)
-                }
-            }, websocket)
+            # Handle screenshot trigger messages
+            if data.get("type") == "screenshot_trigger":
+                screenshot_data = data.get("data", {}).get("screenshot_data")
+                if screenshot_data and world_simulation:
+                    print(f"📸 Received screenshot (size: {len(screenshot_data) // 1024}KB)")
+                    
+                    # Save base64 data to temp file
+                    try:
+                        # Remove data URL prefix if present
+                        if screenshot_data.startswith('data:image'):
+                            screenshot_data = screenshot_data.split(',', 1)[1]
+                        
+                        # Create temp file
+                        with tempfile.NamedTemporaryFile(mode='wb', suffix='.png', prefix='tinyworld_screenshot_', delete=False) as tmp_file:
+                            # Decode base64 and write to file
+                            image_data = base64.b64decode(screenshot_data)
+                            tmp_file.write(image_data)
+                            screenshot_path = tmp_file.name
+                        
+                        print(f"💾 Saved to temp file: {screenshot_path}")
+                        
+                        # Trigger AI decision with vision
+                        asyncio.create_task(
+                            world_simulation._run_ai_decision_with_vision(screenshot_path)
+                        )
+                        
+                        # Acknowledge receipt
+                        await manager.send_personal_message({
+                            "type": "screenshot_received",
+                            "data": {
+                                "timestamp": time.time(),
+                                "temp_path": screenshot_path
+                            }
+                        }, websocket)
+                    except Exception as e:
+                        print(f"❌ Error processing screenshot: {e}")
+                        await manager.send_personal_message({
+                            "type": "error",
+                            "data": {
+                                "message": "Failed to process screenshot",
+                                "error": str(e)
+                            }
+                        }, websocket)
+            else:
+                # Echo back with world update (for other message types)
+                await manager.send_personal_message({
+                    "type": "world_update",
+                    "data": {
+                        "timestamp": time.time(),
+                        "echo": data,
+                        "active_connections": len(manager.active_connections)
+                    }
+                }, websocket)
             
             # If it's a position update, broadcast to all
             if data.get("type") == "character_position":

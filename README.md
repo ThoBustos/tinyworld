@@ -11,18 +11,25 @@ An autonomous world simulation where entities make their own decisions and inter
 5. Clean the codebase for continuous reflection and thinking only ✅
 6. Add opik to the codebase ✅
 7. Have character speaking every 30s ✅
-8. Have the character prompt in codebase for now. Later in postgre db when we add more characters. The main prompt should be the mission of the character and his memory. He need to continuously think and reflect on his mission and his memory to find his purpose, identity and what is the next action he can take to achieve to raise his consciousness.
-
+8. Have the character prompt in codebase for now. Later in postgre db when we add more characters. The main prompt should be the mission of the character and his memory. He need to continuously think and reflect on his mission and his memory to find his purpose, identity and what is the next action he can take to achieve to raise his consciousness. Currently have short term memory not persistent ✅
 [@prompts.py @socrates.py 
-
 let's create something simpler. the first prompt pass is for you to reflect. the prompt have: last 10 messages (short term memory). Use last message to trigger vector store (if last message) sto access older memory.
-add in this same first prompt the goal of the current character.  mission of the charactermission of the character and his memory. He need to continuously think and reflect on his mission and his memory to find his purpose, identity and what is the next action he can take to achieve to raise his consciousness. how to find new actions to gather mmore informatinos. speaking to other humans, seeing the env. each reflection must build up on previous actions. he must take decisions, actinos, stay consistent and develop a belief system. everytime he/she has a new idea, do something new, see something new, learn something, believe something we store in collection.] 🔄 
-!!! **PENDING TO ADD LAST 10 messages filtering vector db by timestamp (add recent memory) and generate memories/belief system.** !!!
-
+add in this same first prompt the goal of the current character.  mission of the charactermission of the character and his memory. He need to continuously think and reflect on his mission and his memory to find his purpose, identity and what is the next action he can take to achieve to raise his consciousness. how to find new actions to gather mmore informatinos. speaking to other humans, seeing the env. each reflection must build up on previous actions. he must take decisions, actinos, stay consistent and develop a belief system. everytime he/she has a new idea, do something new, see something new, learn something, believe something we store in collection.] ✅
+PENDING TO ADD LAST 10 messages filtering vector db by timestamp (add recent memory) and generate memories/belief system. ✅
+9. 
 9. Add database for multiple characters.
 10. Plan for next steps tinyworld (more actions, more characters)
 
+## Things I want to try:
+- Devin
+- Claude in github
+- Amp
+
 ## Pool of ideas:
+- Environmental Awareness - Give characters "eyes" by adding environment info to prompts (town square, fountain, buildings, pathways) so they reference specific locations in thoughts
+- Movement Intent - Characters express desire to move/explore in their thoughts, triggering actual walking animations toward random nearby locations
+- Time-of-Day Responses - Simple day/night cycle affects character thoughts ("As dawn breaks..." vs "In this twilight hour...") for natural variety
+
 - Each character have a life. Eating and sleeping recharge your life. Socializing recharge your life. Monsters can attack you. You can attack monsters. Get protections. Get money. Steel. Craft. Have ideas. Mentor. Help. 
 - use api to adjust the weather, night/day
 - Random Events: Festivals, plagues, migrating animals, visiting philosophers.
@@ -30,7 +37,6 @@ add in this same first prompt the goal of the current character.  mission of the
 - each person have
 - Gerdening
 - Construiction projects
-
 - Villagers each get a simple daily goal (eat, build, socialize), and their choices ripple into others’ routines.
 - Goals clash or align, creating tiny dramas: two chase the same chicken, or three cooperate to build a bench.
 - The town has shared rituals (sunset gathering, morning chores) that give structure but let individuality play out.

@@ -20,6 +20,10 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "loguru>=0.7.3",
     "langchain-chroma>=0.1.2",
+    "sqlalchemy>=2.0.43",
+    "psycopg2-binary>=2.9.10",
+    "alembic>=1.16.5",
+    "langchain-google-genai>=2.1.12",
 ]
 
 [tool.uv]

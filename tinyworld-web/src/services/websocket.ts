@@ -10,13 +10,15 @@ export class WebSocketService {
   private url: string;
   private reconnectTimeout: number | null = null;
   private onAgentUpdateCallback: ((data: AgentUpdateMessage) => void) | null = null;
+  private onConnectedCallback: (() => void) | null = null;
   
   constructor(url: string = 'ws://localhost:8000/ws') {
     this.url = url;
   }
   
-  connect(onAgentUpdate: (data: AgentUpdateMessage) => void): void {
+  connect(onAgentUpdate: (data: AgentUpdateMessage) => void, onConnected?: () => void): void {
     this.onAgentUpdateCallback = onAgentUpdate;
+    this.onConnectedCallback = onConnected || null;
     
     try {
       this.ws = new WebSocket(this.url);
@@ -26,6 +28,11 @@ export class WebSocketService {
         if (this.reconnectTimeout) {
           clearTimeout(this.reconnectTimeout);
           this.reconnectTimeout = null;
+        }
+        // Call the onConnected callback if provided
+        if (this.onConnectedCallback) {
+          console.log('🎬 Calling onConnected callback...');
+          this.onConnectedCallback();
         }
       };
       
@@ -52,7 +59,7 @@ export class WebSocketService {
         this.reconnectTimeout = window.setTimeout(() => {
           console.log('Attempting to reconnect...');
           if (this.onAgentUpdateCallback) {
-            this.connect(this.onAgentUpdateCallback);
+            this.connect(this.onAgentUpdateCallback, this.onConnectedCallback || undefined);
           }
         }, 3000);
       };
@@ -75,5 +82,27 @@ export class WebSocketService {
   
   isConnected(): boolean {
     return this.ws?.readyState === WebSocket.OPEN;
+  }
+  
+  sendScreenshotData(dataUrl: string): void {
+    if (!this.isConnected()) {
+      console.warn('Cannot send screenshot - not connected');
+      return;
+    }
+    
+    const message = {
+      type: 'screenshot_trigger',
+      data: {
+        screenshot_data: dataUrl,
+        timestamp: Date.now()
+      }
+    };
+    
+    try {
+      this.ws?.send(JSON.stringify(message));
+      console.log(`📤 Sent screenshot to server (${Math.round(dataUrl.length / 1024)}KB)`);
+    } catch (error) {
+      console.error('Failed to send screenshot:', error);
+    }
   }
 }
