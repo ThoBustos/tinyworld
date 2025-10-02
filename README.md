@@ -4,16 +4,56 @@ An autonomous world simulation where entities make their own decisions and inter
 
 ## Next Steps for v1
 
-1. Create world simulation loop (tick at 15-30 Hz)
-2. Add basic Entity class (position, velocity, id)
-3. Implement simple wander AI (random direction changes)
-4. Set up WebSocket for state broadcasting
-5. Create REST endpoint for spawning entities
-6. Build PixiJS canvas and connection to WebSocket
-7. Render entities as simple circles
-8. Add click interaction (push/influence entities)
-9. Implement smooth interpolation between server updates
-10. Add basic action system (move, idle, interact)
+1. Create moodboard in midjourney for assets ✅
+2. Reuse philo agents assets (town map and characters) ✅
+3. Camera follow the character in the map ✅
+4. Create the first agentic action - speaking and reflecting ✅
+5. Clean the codebase for continuous reflection and thinking only ✅
+6. Add opik to the codebase ✅
+7. Have character speaking every 30s ✅
+8. Have the character prompt in codebase for now. Later in postgre db when we add more characters. The main prompt should be the mission of the character and his memory. He need to continuously think and reflect on his mission and his memory to find his purpose, identity and what is the next action he can take to achieve to raise his consciousness.
+
+[@prompts.py @socrates.py 
+
+let's create something simpler. the first prompt pass is for you to reflect. the prompt have: last 10 messages (short term memory). Use last message to trigger vector store (if last message) sto access older memory.
+add in this same first prompt the goal of the current character.  mission of the charactermission of the character and his memory. He need to continuously think and reflect on his mission and his memory to find his purpose, identity and what is the next action he can take to achieve to raise his consciousness. how to find new actions to gather mmore informatinos. speaking to other humans, seeing the env. each reflection must build up on previous actions. he must take decisions, actinos, stay consistent and develop a belief system. everytime he/she has a new idea, do something new, see something new, learn something, believe something we store in collection.] 🔄 
+!!! **PENDING TO ADD LAST 10 messages filtering vector db by timestamp (add recent memory) and generate memories/belief system.** !!!
+
+9. Add database for multiple characters.
+10. Plan for next steps tinyworld (more actions, more characters)
+
+## Pool of ideas:
+- Each character have a life. Eating and sleeping recharge your life. Socializing recharge your life. Monsters can attack you. You can attack monsters. Get protections. Get money. Steel. Craft. Have ideas. Mentor. Help. 
+- use api to adjust the weather, night/day
+- Random Events: Festivals, plagues, migrating animals, visiting philosophers.
+- Economy
+- each person have
+- Gerdening
+- Construiction projects
+
+- Villagers each get a simple daily goal (eat, build, socialize), and their choices ripple into others’ routines.
+- Goals clash or align, creating tiny dramas: two chase the same chicken, or three cooperate to build a bench.
+- The town has shared rituals (sunset gathering, morning chores) that give structure but let individuality play out.
+- Over time, villagers remember outcomes (who helped, who stole, who ignored) and adjust how they treat others.
+- Simple status effects (happy, tired, jealous, proud) change how goals are pursued and make their stories visible.
+- When enough villagers act alike, the whole town shifts (more gardens, more pranks, more late-night parties).
+- Viewers can nudge events by spawning new characters or items, watching how the system absorbs the change.
+- Small, unexpected emergent traditions form—like everyone gathering around the pond if one villager keeps playing music there.
+Hidden Role Mystery → one villager is secretly bad (killer/thief), detective & gossip slowly reveal clues.
+- Town Elections → villagers vote in cycles, leaders set rules that shift the world vibe.
+- Secret Prankster → a hidden trouble-maker disrupts the town with small acts, others speculate and accuse.
+- Chaos Cards → random global rules flip in (e.g., everyone lies, sudden dance law).
+- Mini Quests → townsfolk work together on small mysteries, leading to visible new props or events.
+
+♾️ Infinite/Evolving Systems
+- Culture Drift → sayings, habits, and rituals spread between villagers, mutate, and become traditions over time.
+- Faction Growth → cliques form around shared traits or moods, and compete subtly for influence in the town.
+- Rumor Webs → stories circulate, evolve, and gain followers, creating shifting “truths” in the world.
+- Generational Memory → villagers pass down ideas or roles to newcomers, creating evolving lineage dynamics.
+- Town Projects → cooperative building/decorating keeps layering the map with new benches, gardens, monuments endlessly.
+
+Another idea:
+- the villagers don't have memory. They meet. They can talk and remember. And they need to find meaning and do things. They are aware of the space. At the start they don't have any idea of who is who but they develop a sense of others. They have a need for beeing social but they form relationship closer than other. there are very real situations while they figure out their purpose. They can agree on times and places to meet. They create rules and assign roles to maintain order. they can judge. Kill if more than 3 agree. If someone just arrived and some people have been their for a long time, the older can explain the rules and what they currently know. And what they don't know. They are all aware that it's a mistery on why they are in this closed tiny world.
 
 ## Tech Stack
 
@@ -21,16 +61,36 @@ An autonomous world simulation where entities make their own decisions and inter
 **Frontend:** PixiJS with TypeScript  
 **Dev:** uv (Python), Vite (Web), Docker Compose  
 
+## Prerequisites
+
+- Python 3.11+
+- Node.js 18+
+- [uv](https://github.com/astral-sh/uv) (Python package manager)
+- Yarn (for frontend)
+
+### Install uv
+```bash
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Or with Homebrew
+brew install uv
+```
+
 ## Quick Start
 
 ```bash
 # Backend
-cd api && uv sync && uv run uvicorn src.main:app --reload
+cd tinyworld-backend
+uv sync
+uv run python -m uvicorn tinyworld.main:app --reload --host 0.0.0.0 --port 8000
 
 # Frontend  
-cd web && yarn install && yarn dev
+cd tinyworld-web
+yarn install
+yarn dev
 
-# Or both
+# Or both with Docker Compose
 make dev
 ```
 
