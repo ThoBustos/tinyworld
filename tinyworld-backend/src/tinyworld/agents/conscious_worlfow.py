@@ -62,15 +62,23 @@ class ConsciousWorkflow:
     async def get_message(self, state: SimpleState) -> SimpleState:
         """Get character message using prompt"""
         
-        # Get recent memories from vector store
-        # recent_memories = self._get_recent_memories()
-        # recent_memories_text = " | ".join(recent_memories) if recent_memories else "No recent memories"
+        # Use provided recent memories and format them better
+        recent_memories = getattr(self, '_current_recent_messages', [])
         
-        # Skip recent memories for now
-        recent_memories_text = "No recent memories"
+        if recent_memories:
+            # Format recent memories with numbers and better structure
+            formatted_memories = []
+            for i, memory in enumerate(recent_memories[-5:], 1):  # Only show last 5 for clarity
+                formatted_memories.append(f"{i}. \"{memory}\"")
+            recent_memories_text = "\n".join(formatted_memories)
+        else:
+            recent_memories_text = "No previous thoughts yet - this is your first reflection."
+        
+        logger.info(f"💭 Recent memories formatted:\n{recent_memories_text}")
         
         # Create the prompt
         prompt = self._format_prompt(recent_memories_text)
+        logger.info(f"\n💭 Full Prompt:\n{prompt}\n")
         
         try:
             # Get message from character
@@ -131,23 +139,13 @@ class ConsciousWorkflow:
         
         return prompt
     
-    def _get_recent_memories(self) -> List[str]:
-        """Get recent memories from vector store"""
-        try:
-            results = self.vector_store.get_recent_memories(
-                character_id=self.character_id,
-                memory_type="short-term-mem",
-                limit=5
-            )
-            return [result["content"] for result in results]
-        except Exception as e:
-            logger.error(f"Error getting recent memories: {e}")
-            return []
-    
-    async def run_cycle(self, current_state: Dict[str, Any] = None) -> str:
+    async def run_cycle(self, current_state: Dict[str, Any] = None, recent_messages: List[str] = None) -> str:
         """Run one cycle and return character message"""
         if current_state is None:
             current_state = {}
+        
+        # Store recent messages for use in get_message
+        self._current_recent_messages = recent_messages or []
             
         state = SimpleState(
             character_id=self.character_id,

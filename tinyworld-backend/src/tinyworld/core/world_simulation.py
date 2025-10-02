@@ -1,7 +1,8 @@
 import asyncio
 import time
 import math
-from typing import Dict, Optional
+from typing import Dict, Optional, List
+from collections import deque
 
 from tinyworld.agents.conscious_worlfow import ConsciousWorkflow
 
@@ -13,6 +14,21 @@ class WorldState:
         self.decision_interval = 30.0  # AI decisions every 30 seconds
         self.conscious_workflow: Optional[ConsciousWorkflow] = None
         self.last_tick_time = time.time()
+        self.recent_messages: deque = deque(maxlen=10)  # Rolling window of 10 latest messages
+
+    def add_message(self, message: str, timestamp: float = None):
+        """Add a message to the rolling window"""
+        if timestamp is None:
+            timestamp = time.time()
+        
+        self.recent_messages.append({
+            'message': message,
+            'timestamp': timestamp
+        })
+
+    def get_recent_messages_list(self) -> List[str]:
+        """Get recent messages as a simple list of strings"""
+        return [msg['message'] for msg in self.recent_messages]
 
 
 class WorldSimulation:
@@ -89,12 +105,18 @@ class WorldSimulation:
             try:
                 self.decision_in_progress = True
                 
-                # Debug: Check state before update
-                old_last_decision = self.world_state.character_state.get('last_decision_time', 0)
                 
-                # Run the character decision workflow
+                # Initialize or increment execution counter
+                execution_count = self.world_state.character_state.get('execution_count', 0) + 1
+                self.world_state.character_state['execution_count'] = execution_count
+                
+                # Pass recent messages to the workflow
+                recent_messages = self.world_state.get_recent_messages_list()
+                
+                # Run the character decision workflow with recent messages
                 new_state = await self.world_state.conscious_workflow.run_cycle(
-                    self.world_state.character_state
+                    self.world_state.character_state,
+                    recent_messages=recent_messages
                 )
                 
                 # Update only the AI-managed fields, preserve timing and physics
@@ -103,12 +125,17 @@ class WorldSimulation:
                     if field in new_state:
                         self.world_state.character_state[field] = new_state[field]
                 
+                # Add the new message to rolling window
+                if 'character_message' in new_state:
+                    current_time = time.time()
+                    self.world_state.add_message(new_state['character_message'], current_time)
+                    print(f"💬 Added message to rolling window (now has {len(self.world_state.recent_messages)} messages)")
+                
                 # CRITICAL: Set last_decision_time AFTER update to avoid overwrite
                 current_time = time.time()
                 self.world_state.character_state['last_decision_time'] = current_time
                 
-                print(f"✅ AI decision completed at {current_time:.2f}")
-                print(f"   Previous decision was at {old_last_decision:.2f}")
+                print(f"✅ AI decision completed at {current_time:.2f} (Execution #{execution_count})")
                 print(f"   Next trigger in 30 seconds (at ~{(current_time + 30):.2f})")
                 
                 # Broadcast the decision to all connected clients
