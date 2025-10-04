@@ -2,6 +2,9 @@
 
 An autonomous world simulation where entities make their own decisions and interact with their environment.
 
+V1 video: https://www.loom.com/share/605e16304a684147a3e9ad833af71594
+V2 video: https://www.loom.com/share/9d698b2b20074b9b9fa9776661c923c3
+
 ## Next Steps for v1
 
 1. Create moodboard in midjourney for assets ✅
@@ -16,9 +19,11 @@ An autonomous world simulation where entities make their own decisions and inter
 let's create something simpler. the first prompt pass is for you to reflect. the prompt have: last 10 messages (short term memory). Use last message to trigger vector store (if last message) sto access older memory.
 add in this same first prompt the goal of the current character.  mission of the charactermission of the character and his memory. He need to continuously think and reflect on his mission and his memory to find his purpose, identity and what is the next action he can take to achieve to raise his consciousness. how to find new actions to gather mmore informatinos. speaking to other humans, seeing the env. each reflection must build up on previous actions. he must take decisions, actinos, stay consistent and develop a belief system. everytime he/she has a new idea, do something new, see something new, learn something, believe something we store in collection.] ✅
 PENDING TO ADD LAST 10 messages filtering vector db by timestamp (add recent memory) and generate memories/belief system. ✅
-9. 
-9. Add database for multiple characters.
-10. Plan for next steps tinyworld (more actions, more characters)
+9. Added vision to the character. ✅
+10. Added simple movements with vision. ✅
+11. Add belief system and learnings of what's possible to do. ✅
+<!-- 9. Add database for multiple characters. -->
+<!-- 10. Plan for next steps tinyworld (more actions, more characters) -->
 
 ## Things I want to try:
 - Devin

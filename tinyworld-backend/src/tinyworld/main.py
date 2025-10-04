@@ -129,8 +129,12 @@ async def websocket_endpoint(websocket: WebSocket):
             # Handle screenshot trigger messages
             if data.get("type") == "screenshot_trigger":
                 screenshot_data = data.get("data", {}).get("screenshot_data")
+                current_position = data.get("data", {}).get("current_position")  # NEW
+                
                 if screenshot_data and world_simulation:
                     print(f"📸 Received screenshot (size: {len(screenshot_data) // 1024}KB)")
+                    if current_position:  # NEW
+                        print(f"📍 Current position: x={current_position['x']}, y={current_position['y']}")
                     
                     # Save base64 data to temp file
                     try:
@@ -147,9 +151,12 @@ async def websocket_endpoint(websocket: WebSocket):
                         
                         print(f"💾 Saved to temp file: {screenshot_path}")
                         
-                        # Trigger AI decision with vision
+                        # Trigger AI decision with vision AND position
                         asyncio.create_task(
-                            world_simulation._run_ai_decision_with_vision(screenshot_path)
+                            world_simulation._run_ai_decision_with_vision(
+                                screenshot_path,
+                                current_position  # NEW - pass position
+                            )
                         )
                         
                         # Acknowledge receipt
