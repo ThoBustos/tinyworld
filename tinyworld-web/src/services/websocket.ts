@@ -3,6 +3,8 @@ export interface AgentUpdateMessage {
   character_name: string;
   character_message?: string;
   timestamp: number;
+  wants_to_move?: boolean;  // NEW
+  target_position?: { x: number; y: number };  // NEW
 }
 
 export class WebSocketService {
@@ -84,7 +86,7 @@ export class WebSocketService {
     return this.ws?.readyState === WebSocket.OPEN;
   }
   
-  sendScreenshotData(dataUrl: string): void {
+  sendScreenshotData(dataUrl: string, currentPosition?: { x: number; y: number }): void {
     if (!this.isConnected()) {
       console.warn('Cannot send screenshot - not connected');
       return;
@@ -94,13 +96,18 @@ export class WebSocketService {
       type: 'screenshot_trigger',
       data: {
         screenshot_data: dataUrl,
+        current_position: currentPosition,  // NEW
         timestamp: Date.now()
       }
     };
     
     try {
       this.ws?.send(JSON.stringify(message));
-      console.log(`📤 Sent screenshot to server (${Math.round(dataUrl.length / 1024)}KB)`);
+      if (currentPosition) {
+        console.log(`📤 Sent screenshot with position (${currentPosition.x.toFixed(0)}, ${currentPosition.y.toFixed(0)})`);
+      } else {
+        console.log(`📤 Sent screenshot to server (${Math.round(dataUrl.length / 1024)}KB)`);
+      }
     } catch (error) {
       console.error('Failed to send screenshot:', error);
     }

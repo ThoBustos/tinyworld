@@ -12,19 +12,35 @@ from langchain_chroma import Chroma
 import opik
 from opik.integrations.langchain import OpikTracer
 from datetime import datetime
+from pydantic import BaseModel, Field
 
 from tinyworld.agents.prompts import CHARACTER_REFLECTION_PROMPT
 from tinyworld.agents.personalities import get_socrates_config
 from tinyworld.core.chroma_client import TinyWorldVectorStore
 from loguru import logger
 
+# Movement schemas for structured output
+class MessageWithIntent(BaseModel):
+    """Message with movement intent"""
+    message: str = Field(description="Philosophical reflection")
+    wants_to_move: bool = Field(description="Does the character want to move?")
+
+class TargetPosition(BaseModel):
+    """Target position based on visual context"""
+    x: float = Field(description="Target X coordinate", ge=0, le=1280)
+    y: float = Field(description="Target Y coordinate", ge=0, le=1280)
+    reason: str = Field(description="Brief reason for choosing this position")
+
 class SimpleState(TypedDict):
-    """Simple state for character message with vision"""
+    """Simple state for character message with vision and movement"""
     character_id: str
     character_message: str
     tick_count: int
     screenshot_path: Optional[str]
     visual_context: Optional[str]
+    current_position: Optional[Dict[str, float]]  # NEW: {"x": 640, "y": 320}
+    wants_to_move: bool  # NEW
+    target_position: Optional[Dict[str, float]]  # NEW: {"x": 640, "y": 320}
 
 
 class ConsciousWorkflow:
@@ -59,17 +75,42 @@ class ConsciousWorkflow:
         # Vector store
         self.vector_store = TinyWorldVectorStore()
     
+    def movement_condition(self, state: SimpleState) -> str:
+        """Conditional edge: check if character wants to move"""
+        if state.get('wants_to_move', False):
+            return "determine_movement"
+        return "save_memory"
+    
     def _build_graph(self) -> StateGraph:
-        """Build workflow with vision and memory-saving nodes"""
+        """Build workflow with conditional movement"""
         workflow = StateGraph(SimpleState)
         
+        # Add nodes
         workflow.add_node("get_vision", self.get_vision)
         workflow.add_node("get_message", self.get_message)
+        workflow.add_node("determine_movement", self.determine_movement_target)
         workflow.add_node("save_memory", self.save_memory)
         
+        # Set entry point
         workflow.set_entry_point("get_vision")
+        
+        # Add edges
         workflow.add_edge("get_vision", "get_message")
-        workflow.add_edge("get_message", "save_memory")
+        
+        # CONDITIONAL EDGE after message
+        workflow.add_conditional_edges(
+            "get_message",
+            self.movement_condition,  # Function that checks wants_to_move
+            {
+                "determine_movement": "determine_movement",
+                "save_memory": "save_memory"
+            }
+        )
+        
+        # Movement determination always goes to save_memory
+        workflow.add_edge("determine_movement", "save_memory")
+        
+        # Save memory goes to END
         workflow.add_edge("save_memory", END)
         
         return workflow.compile()
@@ -122,7 +163,7 @@ class ConsciousWorkflow:
         return state
     
     async def get_message(self, state: SimpleState) -> SimpleState:
-        """Get character message using prompt with visual context"""
+        """Get character message with movement intent using structured output"""
         
         # Get visual context from vision processing
         visual_context = state.get('visual_context', 'No visual perception available.')
@@ -133,7 +174,7 @@ class ConsciousWorkflow:
         if recent_memories:
             # Format recent memories with timestamps and better structure
             formatted_memories = []
-            for i, memory_data in enumerate(recent_memories[-10:], 1):  # Only show last 5 for clarity
+            for i, memory_data in enumerate(recent_memories[-10:], 1):  # Only show last 10 for clarity
                 if isinstance(memory_data, dict) and 'message' in memory_data and 'timestamp' in memory_data:
                     # Format timestamp to readable format
                     timestamp = datetime.fromtimestamp(memory_data['timestamp']).strftime("%H:%M:%S")
@@ -147,23 +188,103 @@ class ConsciousWorkflow:
         
         logger.info(f"💭 Recent memories formatted:\n{recent_memories_text}")
         
+        # Create LLM with structured output for message + intent
+        message_llm = self.llm.with_structured_output(MessageWithIntent)
+        
         # Create the prompt with visual context
         prompt = self._format_prompt(recent_memories_text, visual_context)
+        prompt += """
+
+Based on your observations and thoughts, determine:
+Whether you want to move to explore or investigate something
+
+Consider movement if you're curious about something you see, 
+want to explore, or seek a different perspective."""
+        
         logger.info(f"\n💭 Full Prompt:\n{prompt}\n")
         
         try:
-            # Get message from character
-            response = await self.llm.ainvoke([HumanMessage(content=prompt)])
-            character_message = response.content.strip()
+            # Get structured response
+            response = await message_llm.ainvoke(prompt)
             
-            state['character_message'] = character_message
-            logger.info(f"💭 {self.config['name']}: {character_message}")
+            state['character_message'] = response.message
+            state['wants_to_move'] = response.wants_to_move
+            
+            logger.info(f"💭 {self.config['name']}: {response.message}")
+            logger.info(f"🚶 Wants to move: {response.wants_to_move}")
             
         except Exception as e:
             logger.error(f"Error getting message: {e}")
             state['character_message'] = "I find myself unable to express my thoughts clearly."
+            state['wants_to_move'] = False
         
         state['tick_count'] = state.get('tick_count', 0) + 1
+        return state
+    
+    async def determine_movement_target(self, state: SimpleState) -> SimpleState:
+        """Determine WHERE to move using image and context"""
+        
+        # Only run if movement is wanted
+        if not state.get('wants_to_move'):
+            state['target_position'] = None
+            return state
+        
+        screenshot_path = state.get('screenshot_path')
+        if not screenshot_path or not os.path.exists(screenshot_path):
+            logger.warning("No screenshot for movement decision")
+            state['target_position'] = None
+            return state
+        
+        if not state.get('current_position'):
+            logger.warning("No current position for movement decision")
+            state['target_position'] = None
+            return state
+        
+        try:
+            # Read and encode the image
+            with open(screenshot_path, "rb") as image_file:
+                encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
+            
+            # Create LLM with structured output for position
+            position_llm = self.llm.with_structured_output(TargetPosition)
+            
+            current_pos = state['current_position']
+            
+            # Movement prompt with image
+            movement_prompt = f"""Based on the thought and image, where should the character move?
+
+Thought: "{state['character_message']}"
+Current position: x={current_pos['x']:.0f}, y={current_pos['y']:.0f}
+
+World info:
+- Size: 1280x1280 pixels (40x40 tiles of 32px)
+- Origin (0,0) is top-left
+- Stay within 100-400 pixels of current position
+
+Look at the image and choose a visible location that aligns with the thought."""
+            
+            # Create message with image
+            message = HumanMessage(
+                content=[
+                    {"type": "text", "text": movement_prompt},
+                    {"type": "image_url", "image_url": f"data:image/png;base64,{encoded_image}"}
+                ]
+            )
+            
+            # Get target position
+            target = await position_llm.ainvoke([message])
+            
+            state['target_position'] = {
+                'x': target.x,
+                'y': target.y
+            }
+            
+            logger.info(f"🎯 Target determined: ({target.x:.0f}, {target.y:.0f}) - {target.reason}")
+            
+        except Exception as e:
+            logger.error(f"Error determining movement target: {e}")
+            state['target_position'] = None
+        
         return state
     
     async def save_memory(self, state: SimpleState) -> SimpleState:
@@ -214,8 +335,11 @@ class ConsciousWorkflow:
         
         return prompt
     
-    async def run_cycle(self, current_state: Dict[str, Any] = None, recent_messages: List[Any] = None, screenshot_path: str = None) -> str:
-        """Run one cycle with vision and return character message"""
+    async def run_cycle(self, current_state: Dict[str, Any] = None, 
+                       recent_messages: List[Any] = None, 
+                       screenshot_path: str = None,
+                       current_position: Dict[str, float] = None) -> Dict:
+        """Run cycle with position and return full state including movement"""
         if current_state is None:
             current_state = {}
         
@@ -227,7 +351,10 @@ class ConsciousWorkflow:
             character_message=current_state.get('character_message', ''),
             tick_count=current_state.get('tick_count', 0),
             screenshot_path=screenshot_path,
-            visual_context=None
+            visual_context=None,
+            current_position=current_position,  # NEW
+            wants_to_move=False,  # NEW
+            target_position=None  # NEW
         )
         
         result = await self.graph.ainvoke(
@@ -235,7 +362,7 @@ class ConsciousWorkflow:
             config={"callbacks": [self.opik_tracer]}
         )
         
-        return result #result['character_message']
+        return result  # Returns full state including movement decision
     
     def get_created_traces(self):
         return self.opik_tracer.created_traces()

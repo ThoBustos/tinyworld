@@ -5,6 +5,7 @@ import { updateCharacterAI } from './character';
 import { WebSocketService, AgentUpdateMessage } from './services/websocket';
 import { AgentDisplay } from './components/AgentDisplay';
 import { ScreenshotService } from './services/screenshot';
+import { IntentionalMovementSystem } from './systems/movement';
 
 async function bootstrap() {
   // Create PixiJS application with fullscreen settings
@@ -57,6 +58,9 @@ async function bootstrap() {
   // Setup manual camera controls
   const updateManualCamera = setupCameraControls(camera, app);
   
+  // Create movement system
+  const movementSystem = new IntentionalMovementSystem();
+  
   // Connect to WebSocket server
   const wsService = new WebSocketService();
   
@@ -75,22 +79,38 @@ async function bootstrap() {
           agentDisplay.speechBubble.show(agentData.character_message, 30); // Show for 30 seconds
           console.log(`🗣️ Socrates says: "${agentData.character_message}"`);
         }
+        
+        // Handle movement intention (NEW)
+        if (agentData.wants_to_move && agentData.target_position) {
+          console.log(`🚶 Socrates wants to move to (${agentData.target_position.x}, ${agentData.target_position.y})`);
+          movementSystem.setTarget(agentData.target_position);
+        }
       }
     },
     // On connected callback - start screenshots
     () => {
       console.log('✅ WebSocket connected, starting screenshot capture...');
       screenshotService.startCapturing(30, (dataUrl) => {
-        console.log('📸 Sending screenshot to backend...');
-        wsService.sendScreenshotData(dataUrl);
+        // Send screenshot with current character position
+        const currentPosition = {
+          x: scene.character.x,
+          y: scene.character.y
+        };
+        console.log(`📸 Sending screenshot from position (${currentPosition.x.toFixed(0)}, ${currentPosition.y.toFixed(0)})`);
+        wsService.sendScreenshotData(dataUrl, currentPosition);
       });
     }
   );
   
   // Main game loop - runs at 60fps
   app.ticker.add((ticker) => {
-    // Update character AI
-    updateCharacterAI(scene.character, ticker.deltaTime);
+    // Try intentional movement first
+    const isMovingIntentionally = movementSystem.update(scene.character, ticker.deltaTime);
+    
+    // If not moving intentionally, use random wander
+    if (!isMovingIntentionally) {
+      updateCharacterAI(scene.character, ticker.deltaTime);
+    }
     
     // Always update agent display position
     agentDisplay.update(scene.character.x, scene.character.y);

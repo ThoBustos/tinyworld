@@ -106,11 +106,19 @@ class WorldSimulation:
                     recent_messages=recent_messages_with_timestamps
                 )
                 
-                # Update only the AI-managed fields, preserve timing and physics
-                ai_fields = ['character_id', 'character_message', 'tick_count']
+                # Update AI-managed fields including movement decisions
+                ai_fields = ['character_id', 'character_message', 'tick_count',
+                            'wants_to_move', 'target_position']  # NEW fields
                 for field in ai_fields:
                     if field in new_state:
                         self.world_state.character_state[field] = new_state[field]
+                
+                # Log movement decision if present
+                if new_state.get('wants_to_move') and new_state.get('target_position'):
+                    target = new_state['target_position']
+                    print(f"🎯 Movement decided: to ({target['x']:.0f}, {target['y']:.0f})")
+                else:
+                    print(f"💭 No movement this cycle")
                 
                 # Add the new message to rolling window
                 if 'character_message' in new_state:
@@ -136,7 +144,7 @@ class WorldSimulation:
             print("❌ No conscious_workflow found - workflow not initialized!")
     
     async def _broadcast_agent_update(self):
-        """Broadcast agent decisions and thoughts"""
+        """Broadcast agent decisions, thoughts and movement intentions"""
         state = self.world_state.character_state
         
         message = {
@@ -149,16 +157,16 @@ class WorldSimulation:
             }
         }
         
-        # Remove the undefined 'action' variable references or define it properly
-        # if action == 'speak':
-        #     message["data"]["speech"] = state.get('action_target', {}).get('content', '')
-        
-        # if action == 'think':
-        #     message["data"]["contemplating"] = True
+        # Only add movement fields if character wants to move
+        if state.get('wants_to_move', False) and state.get('target_position'):
+            message["data"]["wants_to_move"] = True
+            message["data"]["target_position"] = state.get('target_position')
+            print(f"📡 Broadcasting movement intent to frontend")
         
         await self.manager.broadcast(message)
 
-    async def _run_ai_decision_with_vision(self, screenshot_path: str):
+    async def _run_ai_decision_with_vision(self, screenshot_path: str, 
+                                           current_position: Dict[str, float] = None):
         """Run the AI character decision workflow triggered by screenshot"""
         # Prevent concurrent executions
         if self.decision_in_progress:
@@ -167,6 +175,9 @@ class WorldSimulation:
             
         if self.world_state.conscious_workflow:
             print(f"🔄 Running conscious workflow with vision from: {screenshot_path}")
+            if current_position:
+                print(f"📍 Character at position: x={current_position['x']:.0f}, y={current_position['y']:.0f}")
+            
             try:
                 self.decision_in_progress = True
                 
@@ -182,18 +193,27 @@ class WorldSimulation:
                 # Pass recent messages with timestamps to the workflow
                 recent_messages_with_timestamps = self.world_state.get_recent_messages_with_timestamps()
                 
-                # Run the character decision workflow with screenshot
+                # Run the character decision workflow with screenshot AND position
                 new_state = await self.world_state.conscious_workflow.run_cycle(
                     self.world_state.character_state,
                     recent_messages=recent_messages_with_timestamps,
-                    screenshot_path=screenshot_path
+                    screenshot_path=screenshot_path,
+                    current_position=current_position  # NEW - pass position
                 )
                 
-                # Update only the AI-managed fields, preserve timing and physics
-                ai_fields = ['character_id', 'character_message', 'tick_count']
+                # Update AI-managed fields including movement decisions
+                ai_fields = ['character_id', 'character_message', 'tick_count',
+                            'wants_to_move', 'target_position']  # NEW fields
                 for field in ai_fields:
                     if field in new_state:
                         self.world_state.character_state[field] = new_state[field]
+                
+                # Log movement decision if present
+                if new_state.get('wants_to_move') and new_state.get('target_position'):
+                    target = new_state['target_position']
+                    print(f"🎯 Movement decided: to ({target['x']:.0f}, {target['y']:.0f})")
+                else:
+                    print(f"💭 No movement this cycle")
                 
                 # Add the new message to rolling window
                 if 'character_message' in new_state:
