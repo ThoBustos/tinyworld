@@ -369,4 +369,3 @@ Look at the image and choose a visible location that aligns with the thought."""
     
     def flush_traces(self):
         self.opik_tracer.flush()
-workflow.add_edge("get_message", "determine_movement")
